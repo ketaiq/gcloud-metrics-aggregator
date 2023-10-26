@@ -78,79 +78,14 @@ class GCloudSeparator(GCloudMetrics):
             the filtered KPI map which only includes KPI indices from one experiment
         """
         if metric_name.startswith("compute.googleapis.com"):
-            df_node_metadata = self.read_nodes_metadata(exp_name)
-            if (
-                "instance_name" in df_kpi_map.columns
-                and "instance_id" in df_kpi_map.columns
-            ):
-                filter_fields = ["instance_name", "instance_id"]
-                df_exp_kpi_map = (
-                    df_kpi_map.set_index(filter_fields)
-                    .join(
-                        df_node_metadata.set_index(filter_fields),
-                        how="inner",
-                    )
-                    .reset_index()
-                )
-            elif "instance_id" in df_kpi_map.columns:
-                filter_fields = ["instance_id"]
-                df_exp_kpi_map = (
-                    df_kpi_map.set_index(filter_fields)
-                    .join(
-                        df_node_metadata.set_index(filter_fields),
-                        how="inner",
-                    )
-                    .reset_index()
-                )
-            elif "instance_group_name" in df_kpi_map.columns:
-                grp_id = (
-                    df_node_metadata["instance_name"]
-                    .str.extract("gke-train-ticket-cluster-default-pool-([a-z0-9]+)")
-                    .iloc[0, 0]
-                )
-                grp_name = f"gke-train-ticket-cluster-default-pool-{grp_id}-grp"
-                df_exp_kpi_map = df_kpi_map[
-                    df_kpi_map["instance_group_name"] == grp_name
-                ]
+            df_exp_kpi_map = self._filter_kpis_from_compute(exp_name, df_kpi_map)
         elif metric_name.startswith("networking.googleapis.com"):
-            if "cluster_name" in df_kpi_map.columns:
-                exp_id = exp_name.removeprefix(self.EXP_NAME_PREFIX)
-                df_exp_kpi_map = df_kpi_map[
-                    df_kpi_map["cluster_name"].str.contains(exp_id)
-                ]
-            elif "instance_id" in df_kpi_map.columns:
-                df_node_metadata = self.read_nodes_metadata(exp_name)
-                df_exp_kpi_map = (
-                    df_kpi_map.set_index("instance_id")
-                    .join(
-                        df_node_metadata.set_index("instance_id"),
-                        how="inner",
-                    )
-                    .reset_index()
-                )
-            else:
-                return None
+            df_exp_kpi_map = self._filter_kpis_from_networking(exp_name, df_kpi_map)
         elif metric_name.startswith("prometheus.googleapis.com"):
             exp_id = exp_name.removeprefix(self.EXP_NAME_PREFIX)
             df_exp_kpi_map = df_kpi_map[df_kpi_map["cluster"].str.contains(exp_id)]
         elif metric_name.startswith("logging.googleapis.com"):
-            df_node_metadata = self.read_nodes_metadata(exp_name)
-            df_instance_id = (
-                df_kpi_map[~df_kpi_map["instance_id"].isna()]
-                .set_index("instance_id")
-                .join(
-                    df_node_metadata.set_index("instance_id"),
-                    how="inner",
-                )
-                .dropna(axis=1)
-                .reset_index()
-            )
-            exp_id = exp_name.removeprefix(self.EXP_NAME_PREFIX)
-            df_cluster_name = df_kpi_map[
-                ~df_kpi_map["cluster_name"].isna()
-                & df_kpi_map["cluster_name"].str.contains(exp_id)
-            ].dropna(axis=1)
-            df_exp_kpi_map = pd.concat([df_instance_id, df_cluster_name])
+            df_exp_kpi_map = self._filter_kpis_from_logging(exp_name, df_kpi_map)
         elif metric_name.startswith("kubernetes.io"):
             exp_id = exp_name.removeprefix(self.EXP_NAME_PREFIX)
             df_exp_kpi_map = df_kpi_map[df_kpi_map["cluster_name"].str.contains(exp_id)]
@@ -158,3 +93,81 @@ class GCloudSeparator(GCloudMetrics):
             logging.error(f"Metric {metric_name} is not supported!")
             return None
         return df_exp_kpi_map
+
+    def _filter_kpis_from_compute(
+        self, exp_name: str, df_kpi_map: pd.DataFrame
+    ) -> pd.DataFrame:
+        df_node_metadata = self.read_nodes_metadata(exp_name)
+        if (
+            "instance_name" in df_kpi_map.columns
+            and "instance_id" in df_kpi_map.columns
+        ):
+            filter_fields = ["instance_name", "instance_id"]
+            return (
+                df_kpi_map.set_index(filter_fields)
+                .join(
+                    df_node_metadata.set_index(filter_fields),
+                    how="inner",
+                )
+                .reset_index()
+            )
+        elif "instance_id" in df_kpi_map.columns:
+            filter_fields = ["instance_id"]
+            return (
+                df_kpi_map.set_index(filter_fields)
+                .join(
+                    df_node_metadata.set_index(filter_fields),
+                    how="inner",
+                )
+                .reset_index()
+            )
+        elif "instance_group_name" in df_kpi_map.columns:
+            grp_id = (
+                df_node_metadata["instance_name"]
+                .str.extract("gke-train-ticket-cluster-default-pool-([a-z0-9]+)")
+                .iloc[0, 0]
+            )
+            grp_name = f"gke-train-ticket-cluster-default-pool-{grp_id}-grp"
+            return df_kpi_map[df_kpi_map["instance_group_name"] == grp_name]
+        else:
+            return None
+
+    def _filter_kpis_from_networking(
+        self, exp_name: str, df_kpi_map: pd.DataFrame
+    ) -> pd.DataFrame:
+        if "cluster_name" in df_kpi_map.columns:
+            exp_id = exp_name.removeprefix(self.EXP_NAME_PREFIX)
+            return df_kpi_map[df_kpi_map["cluster_name"].str.contains(exp_id)]
+        elif "instance_id" in df_kpi_map.columns:
+            df_node_metadata = self.read_nodes_metadata(exp_name)
+            return (
+                df_kpi_map.set_index("instance_id")
+                .join(
+                    df_node_metadata.set_index("instance_id"),
+                    how="inner",
+                )
+                .reset_index()
+            )
+        else:
+            return None
+
+    def _filter_kpis_from_logging(
+        self, exp_name: str, df_kpi_map: pd.DataFrame
+    ) -> pd.DataFrame:
+        df_node_metadata = self.read_nodes_metadata(exp_name)
+        df_instance_id = (
+            df_kpi_map[~df_kpi_map["instance_id"].isna()]
+            .set_index("instance_id")
+            .join(
+                df_node_metadata.set_index("instance_id"),
+                how="inner",
+            )
+            .dropna(axis=1)
+            .reset_index()
+        )
+        exp_id = exp_name.removeprefix(self.EXP_NAME_PREFIX)
+        df_cluster_name = df_kpi_map[
+            ~df_kpi_map["cluster_name"].isna()
+            & df_kpi_map["cluster_name"].str.contains(exp_id)
+        ].dropna(axis=1)
+        return pd.concat([df_instance_id, df_cluster_name])

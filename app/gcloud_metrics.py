@@ -20,9 +20,15 @@ class GCloudMetrics:
 
     def __init__(self, filename_exp_yaml: str):
         exp_yaml = GCloudMetrics.parse_experiment_yaml(filename_exp_yaml)
-        self.path_metrics = exp_yaml["path_metrics"]
-        self.path_experiments = exp_yaml["path_experiments"]
-        self.experiments = exp_yaml["experiments"]
+        self.path_metrics = (
+            exp_yaml["path_metrics"] if "path_metrics" in exp_yaml else None
+        )
+        self.path_experiments = (
+            exp_yaml["path_experiments"] if "path_experiments" in exp_yaml else None
+        )
+        self.experiments = (
+            exp_yaml["experiments"] if "experiments" in exp_yaml else None
+        )
 
         self.df_metric_type_map = pd.read_csv(
             os.path.join(self.path_metrics, GCloudMetrics.FNAME_METRIC_TYPE_MAP)

@@ -34,10 +34,7 @@ def merge_normal_experiments(fname_exp_yaml: str, ignore_timestamp: bool):
     output_path = os.path.join(
         exp_yaml["path_experiments"], fname_exp_yaml.removesuffix(".yaml") + ".csv"
     )
-    df_normal_exps = pd.concat(normal_exps).to_csv(output_path, index=False)
-    num_cols = len(df_normal_exps.columns)
-    num_rows = len(df_normal_exps)
-    print(f"{num_rows} rows x {num_cols} columns")
+    pd.concat(normal_exps).to_csv(output_path, index=False)
 
 
 def main():

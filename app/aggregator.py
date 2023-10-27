@@ -40,10 +40,6 @@ class Aggregator(ABC):
         return series
 
     @staticmethod
-    def index_list(series) -> list:
-        return series.to_list()
-
-    @staticmethod
     def first_quartile(series: pd.Series):
         return series.quantile(0.25)
 

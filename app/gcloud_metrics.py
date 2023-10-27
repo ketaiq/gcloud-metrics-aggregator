@@ -8,6 +8,7 @@ from datetime import datetime
 
 class GCloudMetrics:
     PATH_EXPERIMENTS_YAML = "experiments"
+    PATH_METADATA_YAML = "metadata"
     FNAME_METRIC_TYPE_MAP = "metric_type_map.csv"
     FNAME_METRIC_TYPE_PREFIX = "metric-type-"
     FNAME_KPI_PREFIX = "kpi-"
@@ -15,7 +16,8 @@ class GCloudMetrics:
     FNAME_KPI_MAP = "kpi_map.jsonl"
     FNAME_NODES_INFO = "nodes_info"
     FNAME_PODS_INFO = "pods_info"
-    FNAME_MERGED_KPIS = "gcloud_combined"
+    FDNAME_MERGED_KPIS = "gcloud_combined"
+    FDNAME_AGGREGATED_KPIS = "gcloud_aggregated"
     EXP_NAME_PREFIX = "normal-"
 
     def __init__(self, filename_exp_yaml: str):
@@ -29,12 +31,19 @@ class GCloudMetrics:
         self.experiments = (
             exp_yaml["experiments"] if "experiments" in exp_yaml else None
         )
-
+        self.experiment_name = (
+            exp_yaml["experiment_name"] if "experiment_name" in exp_yaml else None
+        )
+        path_metric_type_map = (
+            exp_yaml["path_metric_type_map"]
+            if "path_metric_type_map" in exp_yaml
+            else self.path_metrics
+        )
         self.df_metric_type_map = pd.read_csv(
-            os.path.join(self.path_metrics, GCloudMetrics.FNAME_METRIC_TYPE_MAP)
+            os.path.join(path_metric_type_map, GCloudMetrics.FNAME_METRIC_TYPE_MAP)
         ).set_index("index")
 
-    def get_metric_indices(self, use_examples: bool = False) -> list:
+    def get_metric_indices_from_raw_dataset(self, use_examples: bool = False) -> list:
         if use_examples:
             return [1, 74, 92, 94, 152]
         metric_indices = [
@@ -148,7 +157,7 @@ class GCloudMetrics:
         path_folder_merged_kpis = os.path.join(
             self.path_experiments,
             exp_name,
-            GCloudMetrics.FNAME_MERGED_KPIS,
+            GCloudMetrics.FDNAME_MERGED_KPIS,
         )
         if not os.path.exists(path_folder_merged_kpis):
             os.mkdir(path_folder_merged_kpis)

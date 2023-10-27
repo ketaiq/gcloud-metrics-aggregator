@@ -11,7 +11,7 @@ class GCloudSeparator(GCloudMetrics):
 
     def separate_kpis_by_experiments(self):
         logging.info("Separating KPIs by experiments ...")
-        for metric_index in self.get_metric_indices():
+        for metric_index in self.get_metric_indices_from_raw_dataset():
             metric_name = self.df_metric_type_map.loc[metric_index, "name"]
             logging.info(f"Processing metric type {metric_name} ...")
             df_kpi_map = self.read_kpi_map(metric_index).reset_index(names="kpi_index")

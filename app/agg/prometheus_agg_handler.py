@@ -19,7 +19,6 @@ class PrometheusAggHandler(AggregateHandler):
     def aggregate_kpis(self):
         # drop useless columns
         cols_to_drop = self.select_columns_to_drop()
-        self.df_kpi_map = self.df_kpi_map.drop(cols_to_drop, axis=1)
 
         if self.metric_name.startswith("prometheus.googleapis.com/kube_deployment"):
             return self.df_metric.rename(columns=self.gen_map_columns("deployment"))
@@ -30,12 +29,14 @@ class PrometheusAggHandler(AggregateHandler):
         elif self.metric_name.startswith(
             "prometheus.googleapis.com/kube_pod_container_status"
         ):
+            if "container" in cols_to_drop:
+                cols_to_drop.remove("container")
+            self.df_kpi_map = self.df_kpi_map.drop(cols_to_drop, axis=1)
             self.df_kpi_map.drop(["pod"], axis=1, inplace=True)
-            group_columns = list(
-                self.df_kpi_map.drop(columns=[AggregateHandler.COL_KPI_INDEX]).columns
-            )
+            group_columns = ["container"]
             return self.aggregate_with_groups(group_columns, ["sum"])
         elif self.metric_name.startswith("prometheus.googleapis.com/kube_pod_status"):
+            self.df_kpi_map = self.df_kpi_map.drop(cols_to_drop, axis=1)
             pattern_pod_names = "|".join(self.metadata["services"])
             self.df_kpi_map["service"] = self.df_kpi_map["pod"].str.extract(
                 f"({pattern_pod_names})"
@@ -46,12 +47,14 @@ class PrometheusAggHandler(AggregateHandler):
             )
             return self.aggregate_with_groups(group_columns, ["sum"])
 
-        if len(self.df_kpi_map.columns) == 1:
+        self.df_kpi_map = self.df_kpi_map.drop(cols_to_drop, axis=1)
+        if len(self.df_kpi_map.columns) == 1 and len(self.df_kpi_map != 1):
             # aggregate KPIs without grouping any fields in KPI map
             return self.apply_aggregation(self.df_metric)
         elif len(self.df_kpi_map == 1):
             # keep values
-            return self.df_metric.rename(columns={"kpi-1-value": "value"})
+            column = self.df_metric.columns[0]
+            return self.df_metric.rename(columns={column: "value"})
         else:
             group_columns = list(
                 self.df_kpi_map.drop(columns=[AggregateHandler.COL_KPI_INDEX]).columns

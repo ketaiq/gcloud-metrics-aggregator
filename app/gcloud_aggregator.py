@@ -10,7 +10,6 @@ from app.agg.kubernetes_agg_handler import KubernetesAggHandler
 from app.agg.logging_agg_handler import LoggingAggHandler
 from app.agg.networking_agg_handler import NetworkingAggHandler
 from app.agg.prometheus_agg_handler import PrometheusAggHandler
-from app.aggregator import Aggregator
 from app.gcloud_metric_kind import GCloudMetricKind
 from app.gcloud_metrics import GCloudMetrics
 from app.agg.aggregate_handler import AggregateHandler
@@ -39,6 +38,12 @@ class GCloudAggregator(GCloudMetrics):
         with open(path_metadata_yaml) as file_metadata_yaml:
             return yaml.safe_load(file_metadata_yaml)
 
+    @staticmethod
+    def reduce_cumulative(series: pd.Series) -> pd.Series:
+        series = series.sub(series.shift())
+        series = series.mask(series < 0)
+        return series
+    
     def read_combined_kpis(self, metric_index: int) -> pd.DataFrame:
         metric_path = os.path.join(self.path_metrics, f"metric-{metric_index}.csv")
         df_metric = pd.read_csv(metric_path)
@@ -51,7 +56,7 @@ class GCloudAggregator(GCloudMetrics):
             df_metric = df_metric.groupby("timestamp").agg("mean")
         metric_kind = self.df_metric_type_map.loc[metric_index]["kind"]
         if metric_kind == GCloudMetricKind.CUMULATIVE.value:
-            df_metric = df_metric.apply(Aggregator.reduce_cumulative)
+            df_metric = df_metric.apply(GCloudAggregator.reduce_cumulative)
         return df_metric
 
     def aggregate_one_metric(self, metric_index: int):
@@ -103,8 +108,15 @@ class GCloudAggregator(GCloudMetrics):
                 continue
             self.aggregate_one_metric(metric_index)
 
-    def merge_all_metrics(self):
-        """Merge all metrics into one dataframe."""
+    def merge_all_metrics(self, ignore_buffer: bool = False):
+        """
+        Merge all metrics into one dataframe.
+
+        Parameters
+        ----------
+        ignore_buffer : bool
+            if set, ignore starting 1 hour and trailing 1 hour
+        """
         df_all_list = []
         metric_indices = self.get_metric_indices_from_aggregated_dataset()
         for metric_index in metric_indices:
@@ -112,9 +124,12 @@ class GCloudAggregator(GCloudMetrics):
             metric_path = os.path.join(
                 self.aggregated_metrics_path, f"metric-{metric_index}.csv"
             )
-            df_metric = pd.read_csv(metric_path).set_index("timestamp")
+            df_metric = pd.read_csv(metric_path).set_index("timestamp").sort_index()
             df_all_list.append(df_metric.add_prefix(f"metric-{metric_index}-"))
         df_all = pd.concat(df_all_list, axis=1)
+        if ignore_buffer:
+            # <--starting 1h--><--12h--><--trailing 1h-->
+            df_all = df_all.iloc[60:-60]
         num_cols = len(df_all.columns)
         num_rows = len(df_all)
         print(f"{num_rows} rows x {num_cols} columns")
@@ -133,6 +148,7 @@ class GCloudAggregator(GCloudMetrics):
         metric_indices = [
             int(filename.removeprefix("metric-").removesuffix(".csv"))
             for filename in os.listdir(self.aggregated_metrics_path)
+            if filename.startswith("metric-") and filename.endswith(".csv")
         ]
         metric_indices.sort()
         return metric_indices

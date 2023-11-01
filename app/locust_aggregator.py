@@ -1,10 +1,25 @@
+import os
 import pandas as pd
 
 
 class LocustAggregator:
+    FNAME_KPI = "train-ticket_stats_history.csv"
+
     @staticmethod
-    def aggregate_all_metrics(path_locust_csv: str) -> pd.DataFrame:
-        df_locust = pd.read_csv(path_locust_csv)
+    def read_locust_kpi(path_experiments: str, exp_name: str) -> pd.DataFrame:
+        # read from path_experiments
+        path_locust_kpi = os.path.join(path_experiments, LocustAggregator.FNAME_KPI)
+        if os.path.exists(path_locust_kpi):
+            return pd.read_csv(path_locust_kpi)
+        # read from single experiment
+        path_locust_kpi = os.path.join(
+            path_experiments, exp_name, LocustAggregator.FNAME_KPI
+        )
+        if os.path.exists(path_locust_kpi):
+            return pd.read_csv(path_locust_kpi)
+
+    @staticmethod
+    def aggregate_all_metrics(df_locust: pd.DataFrame) -> pd.DataFrame:
         df_locust = df_locust[df_locust["Name"] == "Aggregated"].drop(
             columns=[
                 "Type",
@@ -40,4 +55,5 @@ class LocustAggregator:
             }
         )
         df_locust.index.rename("timestamp", inplace=True)
+        df_locust = df_locust.add_prefix("lm-")
         return df_locust

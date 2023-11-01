@@ -28,6 +28,7 @@ class GCloudAggregator(GCloudMetrics):
         )
         if not os.path.exists(self.aggregated_metrics_path):
             os.mkdir(self.aggregated_metrics_path)
+        self.df_metric_type_map = self.read_metric_type_map()
 
     @staticmethod
     def parse_metadata_yaml(filename_metadata_yaml: str):
@@ -43,7 +44,7 @@ class GCloudAggregator(GCloudMetrics):
         series = series.sub(series.shift())
         series = series.mask(series < 0)
         return series
-    
+
     def read_combined_kpis(self, metric_index: int) -> pd.DataFrame:
         metric_path = os.path.join(self.path_metrics, f"metric-{metric_index}.csv")
         df_metric = pd.read_csv(metric_path)

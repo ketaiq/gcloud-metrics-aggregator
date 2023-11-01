@@ -11,19 +11,24 @@ class GCloudSeparator(GCloudMetrics):
 
     def separate_kpis_by_experiments(self):
         logging.info("Separating KPIs by experiments ...")
-        for metric_index in self.get_metric_indices_from_raw_dataset():
-            metric_name = self.df_metric_type_map.loc[metric_index, "name"]
-            logging.info(f"Processing metric type {metric_name} ...")
-            df_kpi_map = self.read_kpi_map(metric_index).reset_index(names="kpi_index")
+        for experiment in self.experiments:
+            logging.info(
+                "Processing experiment {name} ...".format(name=experiment["name"])
+            )
+            df_metric_type_map = self.read_metric_type_map(experiment["name"])
+            for metric_index in self.get_metric_indices_from_raw_dataset(
+                experiment["name"]
+            ):
+                metric_name = df_metric_type_map.loc[metric_index, "name"]
+                logging.info(f"Processing metric type {metric_name} ...")
+                df_kpi_map = self.read_kpi_map(
+                    metric_index, experiment["name"]
+                ).reset_index(names="kpi_index")
 
-            for experiment in self.experiments:
-                logging.info(
-                    "Processing experiment {name} ...".format(name=experiment["name"])
-                )
                 if self.metric_merged_kpis_exists(metric_index, experiment["name"]):
                     continue
                 df_exp_kpi_map = self.filter_kpis_in_one_experiment(
-                    metric_name, experiment["name"], df_kpi_map
+                    metric_name, experiment, df_kpi_map
                 )
                 if df_exp_kpi_map is None or df_exp_kpi_map.empty:
                     continue
@@ -38,7 +43,7 @@ class GCloudSeparator(GCloudMetrics):
         end_dt = datetime.fromisoformat(experiment["end"]).timestamp()
         kpi_list = []
         for kpi_index in df_exp_kpi_map["kpi_index"]:
-            df_kpi = self.read_kpi(metric_index, kpi_index)
+            df_kpi = self.read_kpi(metric_index, kpi_index, experiment["name"])
             df_kpi = df_kpi[(df_kpi.index >= start_dt) & (df_kpi.index <= end_dt)]
             kpi_list.append(df_kpi)
         df_kpis = pd.concat(kpi_list, axis=1)
@@ -67,7 +72,7 @@ class GCloudSeparator(GCloudMetrics):
         return os.path.exists(path_merged_kpis) and os.path.exists(path_merged_kpis_map)
 
     def filter_kpis_in_one_experiment(
-        self, metric_name: str, exp_name: str, df_kpi_map: pd.DataFrame
+        self, metric_name: str, experiment: dict, df_kpi_map: pd.DataFrame
     ) -> pd.DataFrame | None:
         """
         Filter KPIs in one experiment from the KPI map.
@@ -77,27 +82,30 @@ class GCloudSeparator(GCloudMetrics):
         DataFrame | None
             the filtered KPI map which only includes KPI indices from one experiment
         """
+        cluster_suffix = experiment["cluster_suffix"]
         if metric_name.startswith("compute.googleapis.com"):
-            df_exp_kpi_map = self._filter_kpis_from_compute(exp_name, df_kpi_map)
+            df_exp_kpi_map = self._filter_kpis_from_compute(experiment, df_kpi_map)
         elif metric_name.startswith("networking.googleapis.com"):
-            df_exp_kpi_map = self._filter_kpis_from_networking(exp_name, df_kpi_map)
+            df_exp_kpi_map = self._filter_kpis_from_networking(experiment, df_kpi_map)
         elif metric_name.startswith("prometheus.googleapis.com"):
-            exp_id = exp_name.removeprefix(self.EXP_NAME_PREFIX)
-            df_exp_kpi_map = df_kpi_map[df_kpi_map["cluster"].str.contains(exp_id)]
+            df_exp_kpi_map = df_kpi_map[
+                df_kpi_map["cluster"].str.contains(cluster_suffix)
+            ]
         elif metric_name.startswith("logging.googleapis.com"):
-            df_exp_kpi_map = self._filter_kpis_from_logging(exp_name, df_kpi_map)
+            df_exp_kpi_map = self._filter_kpis_from_logging(experiment, df_kpi_map)
         elif metric_name.startswith("kubernetes.io"):
-            exp_id = exp_name.removeprefix(self.EXP_NAME_PREFIX)
-            df_exp_kpi_map = df_kpi_map[df_kpi_map["cluster_name"].str.contains(exp_id)]
+            df_exp_kpi_map = df_kpi_map[
+                df_kpi_map["cluster_name"].str.contains(cluster_suffix)
+            ]
         else:
             logging.error(f"Metric {metric_name} is not supported!")
             return None
         return df_exp_kpi_map
 
     def _filter_kpis_from_compute(
-        self, exp_name: str, df_kpi_map: pd.DataFrame
+        self, experiment: dict, df_kpi_map: pd.DataFrame
     ) -> pd.DataFrame:
-        df_node_metadata = self.read_nodes_metadata(exp_name)
+        df_node_metadata = self.read_nodes_metadata(experiment)
         if (
             "instance_name" in df_kpi_map.columns
             and "instance_id" in df_kpi_map.columns
@@ -133,13 +141,13 @@ class GCloudSeparator(GCloudMetrics):
             return None
 
     def _filter_kpis_from_networking(
-        self, exp_name: str, df_kpi_map: pd.DataFrame
+        self, experiment: dict, df_kpi_map: pd.DataFrame
     ) -> pd.DataFrame:
         if "cluster_name" in df_kpi_map.columns:
-            exp_id = exp_name.removeprefix(self.EXP_NAME_PREFIX)
-            return df_kpi_map[df_kpi_map["cluster_name"].str.contains(exp_id)]
+            cluster_suffix = experiment["cluster_suffix"]
+            return df_kpi_map[df_kpi_map["cluster_name"].str.contains(cluster_suffix)]
         elif "instance_id" in df_kpi_map.columns:
-            df_node_metadata = self.read_nodes_metadata(exp_name)
+            df_node_metadata = self.read_nodes_metadata(experiment)
             return (
                 df_kpi_map.set_index("instance_id")
                 .join(
@@ -152,9 +160,9 @@ class GCloudSeparator(GCloudMetrics):
             return None
 
     def _filter_kpis_from_logging(
-        self, exp_name: str, df_kpi_map: pd.DataFrame
+        self, experiment: dict, df_kpi_map: pd.DataFrame
     ) -> pd.DataFrame:
-        df_node_metadata = self.read_nodes_metadata(exp_name)
+        df_node_metadata = self.read_nodes_metadata(experiment)
         df_instance_id = (
             df_kpi_map[~df_kpi_map["instance_id"].isna()]
             .set_index("instance_id")
@@ -165,9 +173,9 @@ class GCloudSeparator(GCloudMetrics):
             .dropna(axis=1)
             .reset_index()
         )
-        exp_id = exp_name.removeprefix(self.EXP_NAME_PREFIX)
+        cluster_suffix = experiment["cluster_suffix"]
         df_cluster_name = df_kpi_map[
             ~df_kpi_map["cluster_name"].isna()
-            & df_kpi_map["cluster_name"].str.contains(exp_id)
+            & df_kpi_map["cluster_name"].str.contains(cluster_suffix)
         ].dropna(axis=1)
         return pd.concat([df_instance_id, df_cluster_name])

@@ -63,4 +63,6 @@ class KubernetesAggHandler(AggregateHandler):
             | KubernetesAggHandler.USELESS_COLUMNS
         )
         cols_to_drop = cols_to_drop.intersection(set(self.df_kpi_map.columns))
+        # keep pod_phase if exists
+        cols_to_drop.discard("pod_phase")
         return cols_to_drop

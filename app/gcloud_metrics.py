@@ -58,26 +58,32 @@ class GCloudMetrics:
             return pd.read_csv(path_metric_type_map).set_index("index")
 
     def get_metric_indices_from_raw_dataset(
-        self, exp_name: str, use_examples: bool = False
+        self, exp_name: str, only_pod_metrics: bool = False
     ) -> list:
-        if use_examples:
-            return [1, 74, 92, 94, 152]
-        elif self.path_metrics:
+        if self.path_metrics:
             metric_indices = [
                 int(fname.removeprefix(GCloudMetrics.FNAME_METRIC_TYPE_PREFIX))
                 for fname in os.listdir(self.path_metrics)
                 if fname.startswith(GCloudMetrics.FNAME_METRIC_TYPE_PREFIX)
             ]
-            metric_indices.sort()
-            return metric_indices
         else:
             metric_indices = [
                 int(fname.removeprefix(GCloudMetrics.FNAME_METRIC_TYPE_PREFIX))
                 for fname in os.listdir(self.build_path_experiment_metrics(exp_name))
                 if fname.startswith(GCloudMetrics.FNAME_METRIC_TYPE_PREFIX)
             ]
-            metric_indices.sort()
-            return metric_indices
+        if only_pod_metrics:
+            metric_indices = [
+                metric_index
+                for metric_index in metric_indices
+                if metric_index
+                in list(range(79, 84))
+                + list(range(94, 118))
+                + list(range(145, 152))
+                + list(range(161, 165))
+            ]
+        metric_indices.sort()
+        return metric_indices
 
     @staticmethod
     def parse_experiment_yaml(filename_exp_yaml: str):
@@ -123,6 +129,46 @@ class GCloudMetrics:
                 )
         return pd.DataFrame(nodes_metadata).drop_duplicates()
 
+    @staticmethod
+    def read_pods_metadata(
+        start_ts: int, end_ts: int, path_pods_info: str
+    ) -> pd.DataFrame:
+        """
+        Read metadata of unique pods in one experiment.
+
+        Parameters
+        ----------
+        start_ts : int
+            the UNIX timestamp in seconds at the start of the experiment
+        end_ts : int
+            the UNIX timestamp in seconds at the end of the experiment
+        path_pods_info : str
+            the path to files of pods' information
+
+        Returns
+        -------
+        DataFrame
+            metadata of pods in pandas DataFrame, including names and phases
+        """
+        pods_metadata = {"timestamp": [], "pod_name": [], "pod_phase": []}
+        for filename in os.listdir(path_pods_info):
+            info_ts = int(filename.removesuffix(".json"))
+            if info_ts < start_ts or info_ts > end_ts:
+                continue
+            with open(os.path.join(path_pods_info, filename)) as file_pods_info:
+                pods_info = json.load(file_pods_info)
+            for pod in pods_info["items"]:
+                pod_name = pod["metadata"]["name"]
+                pod_phase = pod["status"]["phase"]
+                pods_metadata["timestamp"].append(info_ts)
+                pods_metadata["pod_name"].append(pod_name)
+                pods_metadata["pod_phase"].append(pod_phase)
+        df_pods_metadata = pd.DataFrame(pods_metadata)
+        df_pods_metadata["timestamp"] = pd.to_datetime(
+            df_pods_metadata["timestamp"], unit="s"
+        ).dt.round("min")
+        return df_pods_metadata.drop_duplicates()
+
     def build_path_nodes_info(self, exp_name: str) -> str:
         path_1 = os.path.join(self.path_experiments, GCloudMetrics.FNAME_NODES_INFO)
         path_2 = os.path.join(
@@ -155,7 +201,7 @@ class GCloudMetrics:
         return pd.DataFrame(kpi_maps, index=indices).sort_index(axis=1)
 
     def read_kpi(
-        self, metric_index: int, kpi_index: int, exp_name: str
+        self, metric_index: int, kpi_index: int, exp_name: str, start_ts, end_ts
     ) -> pd.DataFrame:
         """
         Read values of a KPI per minute given the index.
@@ -168,6 +214,10 @@ class GCloudMetrics:
             the index of a KPI
         exp_name : str
             the name of an experiment
+        start_ts : int
+            the UNIX timestamp in seconds at the start of the experiment
+        end_ts : int
+            the UNIX timestamp in seconds at the end of the experiment
 
         Returns
         -------
@@ -176,8 +226,15 @@ class GCloudMetrics:
         """
         path_kpi = self.build_path_kpi(metric_index, kpi_index, exp_name)
         df_kpi = pd.read_csv(path_kpi)
-        df_kpi = df_kpi.set_index("timestamp").add_prefix(f"kpi-{kpi_index}-")
-        return df_kpi
+        df_kpi = df_kpi[
+            (df_kpi["timestamp"] >= start_ts) & (df_kpi["timestamp"] <= end_ts)
+        ]
+        df_kpi["timestamp"] = pd.to_datetime(df_kpi["timestamp"], unit="s").dt.round(
+            "min"
+        )
+        return df_kpi.drop_duplicates(subset=["timestamp"], keep="last").set_index(
+            "timestamp"
+        )
 
     def build_path_experiment_metrics(self, exp_name: str) -> str:
         return os.path.join(

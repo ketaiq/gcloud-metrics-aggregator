@@ -1,4 +1,5 @@
 import os
+from app.agg.strategy import Strategy
 from app.gcloud_aggregator import GCloudAggregator
 from app.gcloud_metrics import GCloudMetrics
 from app.gcloud_separator import GCloudSeparator
@@ -10,14 +11,21 @@ from app.locust_aggregator import LocustAggregator
 
 
 def aggregate_metrics(fname_exp_yaml: str, filename_metadata_yaml: str):
-    gcloud_aggregator = GCloudAggregator(fname_exp_yaml, filename_metadata_yaml)
+    gcloud_aggregator = GCloudAggregator(
+        fname_exp_yaml,
+        filename_metadata_yaml,
+        strategy=Strategy.CONSIDER_POD_PHASES,
+        only_pod_metrics=True,
+    )
     gcloud_aggregator.aggregate_all_metrics()
-    gcloud_aggregator.merge_all_metrics(ignore_buffer=True)
+    gcloud_aggregator.merge_all_metrics()
 
 
-def separate_metrics(fname_exp_yaml: str):
-    gcloud_separator = GCloudSeparator(fname_exp_yaml)
-    gcloud_separator.separate_kpis_by_experiments()
+def separate_metrics(fname_exp_yaml: str, exp_index: int):
+    gcloud_separator = GCloudSeparator(
+        fname_exp_yaml, strategy=Strategy.CONSIDER_POD_PHASES, only_pod_metrics=True
+    )
+    gcloud_separator.separate_kpis(exp_index)
 
 
 def merge_normal_experiments(
@@ -76,13 +84,20 @@ def merge_normal_experiments(
     df_normal_exps.to_csv(output_path, index=False)
 
 
-def main():
-    # define logging format
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s:%(message)s",
+def separate_metrics_with_multiprocess():
+    inputs = (
+        ("normal-fix-4days.yaml", 0),
+        ("normal-fix-4days.yaml", 1),
+        ("normal-fix-4days.yaml", 2),
+        ("normal-fix-4days.yaml", 3),
     )
-    separate_metrics("normal-fix-4days.yaml")
+    with Pool(processes=len(inputs)) as pool:
+        pool.starmap(separate_metrics, inputs)
+        pool.close()
+        pool.join()
+
+
+def aggregate_metrics_with_multiprocess():
     inputs = (
         ("normal-fix-4days-day-1.yaml", "train_ticket.yaml"),
         ("normal-fix-4days-day-2.yaml", "train_ticket.yaml"),
@@ -94,6 +109,17 @@ def main():
         pool.close()
         pool.join()
 
+
+def main():
+    # define logging format
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s:%(message)s",
+    )
+    # separate_metrics("normal-fix-4days.yaml", 0)
+    # separate_metrics_with_multiprocess()
+    # aggregate_metrics_with_multiprocess()
+    # aggregate_metrics("normal-fix-4days-day-3.yaml", "train_ticket.yaml")
     merge_normal_experiments("normal-fix-4days.yaml", False, True)
 
 

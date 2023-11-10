@@ -10,15 +10,23 @@ from app.agg.kubernetes_agg_handler import KubernetesAggHandler
 from app.agg.logging_agg_handler import LoggingAggHandler
 from app.agg.networking_agg_handler import NetworkingAggHandler
 from app.agg.prometheus_agg_handler import PrometheusAggHandler
+from app.agg.strategy import Strategy
 from app.gcloud_metric_kind import GCloudMetricKind
 from app.gcloud_metrics import GCloudMetrics
 from app.agg.aggregate_handler import AggregateHandler
 
 
 class GCloudAggregator(GCloudMetrics):
-    def __init__(self, filename_exp_yaml: str, filename_metadata_yaml: str):
+    def __init__(
+        self,
+        filename_exp_yaml: str,
+        filename_metadata_yaml: str,
+        strategy: Strategy,
+        only_pod_metrics: bool = False,
+    ):
         super().__init__(filename_exp_yaml)
         self.metadata = GCloudAggregator.parse_metadata_yaml(filename_metadata_yaml)
+        self.strategy = strategy
         self.parent_path_metrics = os.path.dirname(self.path_metrics)
         self.aggregated_metrics_path = os.path.join(
             self.parent_path_metrics, GCloudMetrics.FDNAME_AGGREGATED_KPIS
@@ -29,6 +37,7 @@ class GCloudAggregator(GCloudMetrics):
         if not os.path.exists(self.aggregated_metrics_path):
             os.mkdir(self.aggregated_metrics_path)
         self.df_metric_type_map = self.read_metric_type_map()
+        self.only_pod_metrics = only_pod_metrics
 
     @staticmethod
     def parse_metadata_yaml(filename_metadata_yaml: str):
@@ -76,7 +85,12 @@ class GCloudAggregator(GCloudMetrics):
             ).aggregate_kpis()
         elif metric_name.startswith("networking.googleapis.com"):
             df_agg_metric = NetworkingAggHandler(
-                metric_index, metric_name, df_kpi_map, df_metric, self.metadata
+                metric_index,
+                metric_name,
+                df_kpi_map,
+                df_metric,
+                self.metadata,
+                self.strategy,
             ).aggregate_kpis()
         elif metric_name.startswith("prometheus.googleapis.com"):
             df_agg_metric = PrometheusAggHandler(
@@ -136,13 +150,25 @@ class GCloudAggregator(GCloudMetrics):
         print(f"{num_rows} rows x {num_cols} columns")
         df_all.to_csv(self.complete_time_series_path)
 
-    def get_metric_indices_from_combined_dataset(self) -> list:
+    def get_metric_indices_from_combined_dataset(
+        self,
+    ) -> list:
         metric_indices = [
             int(filename.removeprefix("metric-").removesuffix("-kpi-map.csv"))
             for filename in os.listdir(self.path_metrics)
             if filename.endswith("kpi-map.csv")
         ]
         metric_indices.sort()
+        if self.only_pod_metrics:
+            metric_indices = [
+                metric_index
+                for metric_index in metric_indices
+                if metric_index
+                in list(range(79, 84))
+                + list(range(94, 118))
+                + list(range(145, 152))
+                + list(range(155, 165))
+            ]
         return metric_indices
 
     def get_metric_indices_from_aggregated_dataset(self) -> list:

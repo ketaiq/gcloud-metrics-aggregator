@@ -1,5 +1,7 @@
 import pandas as pd
 from app.agg.aggregate_handler import AggregateHandler
+from app.agg.strategy import Strategy
+from app.gcloud_metrics import GCloudMetrics
 
 
 class NetworkingAggHandler(AggregateHandler):
@@ -31,9 +33,11 @@ class NetworkingAggHandler(AggregateHandler):
         df_kpi_map: pd.DataFrame,
         df_metric: pd.DataFrame,
         metadata: dict,
+        strategy: Strategy,
     ):
         super().__init__(metric_index, metric_name, df_kpi_map, df_metric)
         self.metadata = metadata
+        self.strategy = strategy
 
     def aggregate_kpis(self):
         # drop useless columns
@@ -69,4 +73,6 @@ class NetworkingAggHandler(AggregateHandler):
             | NetworkingAggHandler.USELESS_COLUMNS
         )
         cols_to_drop = cols_to_drop.intersection(set(self.df_kpi_map.columns))
+        # keep pod_phase if exists
+        cols_to_drop.discard("pod_phase")
         return cols_to_drop

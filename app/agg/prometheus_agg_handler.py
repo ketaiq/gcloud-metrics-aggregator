@@ -19,6 +19,7 @@ class PrometheusAggHandler(AggregateHandler):
     def aggregate_kpis(self):
         # drop useless columns
         cols_to_drop = self.select_columns_to_drop()
+        self.df_kpi_map = self.df_kpi_map.drop(cols_to_drop, axis=1)
 
         if self.metric_name.startswith("prometheus.googleapis.com/kube_deployment"):
             return self.df_metric.rename(columns=self.gen_map_columns("deployment"))
@@ -29,14 +30,10 @@ class PrometheusAggHandler(AggregateHandler):
         elif self.metric_name.startswith(
             "prometheus.googleapis.com/kube_pod_container_status"
         ):
-            if "container" in cols_to_drop:
-                cols_to_drop.remove("container")
-            self.df_kpi_map = self.df_kpi_map.drop(cols_to_drop, axis=1)
             self.df_kpi_map.drop(["pod"], axis=1, inplace=True)
             group_columns = ["container"]
             return self.aggregate_with_groups(group_columns, ["sum"])
         elif self.metric_name.startswith("prometheus.googleapis.com/kube_pod_status"):
-            self.df_kpi_map = self.df_kpi_map.drop(cols_to_drop, axis=1)
             pattern_pod_names = "|".join(self.metadata["services"])
             self.df_kpi_map["service"] = self.df_kpi_map["pod"].str.extract(
                 f"({pattern_pod_names})"
@@ -47,7 +44,6 @@ class PrometheusAggHandler(AggregateHandler):
             )
             return self.aggregate_with_groups(group_columns, ["sum"])
 
-        self.df_kpi_map = self.df_kpi_map.drop(cols_to_drop, axis=1)
         if len(self.df_kpi_map.columns) == 1 and len(self.df_kpi_map != 1):
             # aggregate KPIs without grouping any fields in KPI map
             return self.apply_aggregation(self.df_metric)
@@ -74,26 +70,29 @@ class PrometheusAggHandler(AggregateHandler):
             | PrometheusAggHandler.USELESS_COLUMNS
         )
         cols_to_drop = cols_to_drop.intersection(set(self.df_kpi_map.columns))
+        # keep pod_phase if exists
+        cols_to_drop.discard("pod_phase")
+        cols_to_drop.discard("container")
         return cols_to_drop
 
     def gen_map_columns(self, target_column: str = None):
-        self.df_kpi_map = self.df_kpi_map.set_index("kpi_index")
+        df_kpi_map = self.df_kpi_map.set_index("kpi_index")
         map_columns = {}
-        for kpi_index in self.df_kpi_map.index:
+        for kpi_index in df_kpi_map.index:
             original_column_name = f"kpi-{kpi_index}-value"
             if target_column is None:
                 map_columns[original_column_name] = "-".join(
                     list(
                         (
                             name.upper() + "-" + str(value)
-                            for name, value in self.df_kpi_map.loc[kpi_index]
+                            for name, value in df_kpi_map.loc[kpi_index]
                             .to_dict()
                             .items()
                         )
                     )
                 )
             else:
-                map_columns[original_column_name] = self.df_kpi_map.loc[
+                map_columns[original_column_name] = df_kpi_map.loc[
                     kpi_index, target_column
                 ]
         return map_columns

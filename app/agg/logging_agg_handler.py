@@ -36,6 +36,9 @@ class LoggingAggHandler(AggregateHandler):
         df_kpi_map_nunique = self.df_kpi_map.drop(
             columns=[AggregateHandler.COL_KPI_INDEX]
         ).nunique()
-        cols_to_drop = set(df_kpi_map_nunique[df_kpi_map_nunique == 1].index) | LoggingAggHandler.USELESS_COLUMNS
+        cols_to_drop = (
+            set(df_kpi_map_nunique[df_kpi_map_nunique == 1].index)
+            | LoggingAggHandler.USELESS_COLUMNS
+        )
         cols_to_drop = cols_to_drop.intersection(set(self.df_kpi_map.columns))
         return cols_to_drop

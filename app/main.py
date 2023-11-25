@@ -10,12 +10,12 @@ import pandas as pd
 from app.locust_aggregator import LocustAggregator
 
 
-def aggregate_metrics(fname_exp_yaml: str, filename_metadata_yaml: str):
+def aggregate_metrics(fname_exp_yaml: str, filename_metadata_yaml: str, exp_index: int):
     gcloud_aggregator = GCloudAggregator(
         fname_exp_yaml,
         filename_metadata_yaml,
+        exp_index,
         strategy=Strategy.CONSIDER_POD_PHASES,
-        only_pod_metrics=True,
     )
     gcloud_aggregator.aggregate_all_metrics()
     gcloud_aggregator.merge_all_metrics()
@@ -23,7 +23,7 @@ def aggregate_metrics(fname_exp_yaml: str, filename_metadata_yaml: str):
 
 def separate_metrics(fname_exp_yaml: str, exp_index: int):
     gcloud_separator = GCloudSeparator(
-        fname_exp_yaml, strategy=Strategy.CONSIDER_POD_PHASES, only_pod_metrics=True
+        fname_exp_yaml, strategy=Strategy.CONSIDER_POD_PHASES
     )
     gcloud_separator.separate_kpis(exp_index)
 
@@ -109,6 +109,9 @@ def aggregate_metrics_with_multiprocess():
         pool.close()
         pool.join()
 
+def process_single_experiment(fname_exp_yaml: str):
+    separate_metrics(fname_exp_yaml, 0)
+    aggregate_metrics(fname_exp_yaml, "train_ticket.yaml", 0)
 
 def main():
     # define logging format
@@ -116,11 +119,11 @@ def main():
         level=logging.INFO,
         format="%(asctime)s %(levelname)s:%(message)s",
     )
-    # separate_metrics("normal-fix-4days.yaml", 0)
+    process_single_experiment("memory-stress-ts-auth-service-111717.yaml")
+    
     # separate_metrics_with_multiprocess()
     # aggregate_metrics_with_multiprocess()
-    # aggregate_metrics("normal-fix-4days-day-3.yaml", "train_ticket.yaml")
-    merge_normal_experiments("normal-fix-4days.yaml", False, True)
+    # merge_normal_experiments("normal-fix-4days.yaml", False, True)
 
 
 if __name__ == "__main__":

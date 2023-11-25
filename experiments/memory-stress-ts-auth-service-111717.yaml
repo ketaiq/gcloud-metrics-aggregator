@@ -1,0 +1,6 @@
+path_experiments: "/Users/ketai/train-ticket/linear-memory-stress-ts-auth-service-111717"
+experiments:
+  - name: linear-memory-stress-ts-auth-service-111717
+    start: "2023-11-17T17:22:05+01:00"
+    end: "2023-11-17T19:13:36+01:00"
+    cluster_suffix: failure-injection-111715

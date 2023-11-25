@@ -13,7 +13,6 @@ from app.agg.prometheus_agg_handler import PrometheusAggHandler
 from app.agg.strategy import Strategy
 from app.gcloud_metric_kind import GCloudMetricKind
 from app.gcloud_metrics import GCloudMetrics
-from app.agg.aggregate_handler import AggregateHandler
 
 
 class GCloudAggregator(GCloudMetrics):
@@ -21,22 +20,24 @@ class GCloudAggregator(GCloudMetrics):
         self,
         filename_exp_yaml: str,
         filename_metadata_yaml: str,
+        exp_index: int,
         strategy: Strategy,
         only_pod_metrics: bool = False,
     ):
         super().__init__(filename_exp_yaml)
+        self.experiment = self.experiments[exp_index]
         self.metadata = GCloudAggregator.parse_metadata_yaml(filename_metadata_yaml)
         self.strategy = strategy
-        self.parent_path_metrics = os.path.dirname(self.path_metrics)
+        self.combined_metrics_path = os.path.join(self.build_path_experiment(self.experiment["name"]), GCloudMetrics.FDNAME_MERGED_KPIS)
         self.aggregated_metrics_path = os.path.join(
-            self.parent_path_metrics, GCloudMetrics.FDNAME_AGGREGATED_KPIS
+            self.build_path_experiment(self.experiment["name"]), GCloudMetrics.FDNAME_AGGREGATED_KPIS
         )
         self.complete_time_series_path = os.path.join(
-            self.parent_path_metrics, f"{self.experiment_name}.csv"
+            self.build_path_experiment(self.experiment["name"]), f'{self.experiment["name"]}.csv'
         )
         if not os.path.exists(self.aggregated_metrics_path):
             os.mkdir(self.aggregated_metrics_path)
-        self.df_metric_type_map = self.read_metric_type_map()
+        self.df_metric_type_map = self.read_metric_type_map(self.experiment["name"])
         self.only_pod_metrics = only_pod_metrics
 
     @staticmethod
@@ -55,7 +56,7 @@ class GCloudAggregator(GCloudMetrics):
         return series
 
     def read_combined_kpis(self, metric_index: int) -> pd.DataFrame:
-        metric_path = os.path.join(self.path_metrics, f"metric-{metric_index}.csv")
+        metric_path = os.path.join(self.combined_metrics_path, f"metric-{metric_index}.csv")
         df_metric = pd.read_csv(metric_path)
         df_metric["timestamp"] = pd.to_datetime(
             df_metric["timestamp"], unit="s"
@@ -73,7 +74,7 @@ class GCloudAggregator(GCloudMetrics):
         """Aggregate all available KPIs in one metric to reduce dimensionality."""
         metric_name = self.df_metric_type_map.loc[metric_index]["name"]
         df_kpi_map = pd.read_csv(
-            os.path.join(self.path_metrics, f"metric-{metric_index}-kpi-map.csv")
+            os.path.join(self.combined_metrics_path, f"metric-{metric_index}-kpi-map.csv")
         )
         df_metric = self.read_combined_kpis(metric_index)
         logging.info(f"Aggregating metric {metric_index} {metric_name} ...")
@@ -150,12 +151,10 @@ class GCloudAggregator(GCloudMetrics):
         print(f"{num_rows} rows x {num_cols} columns")
         df_all.to_csv(self.complete_time_series_path)
 
-    def get_metric_indices_from_combined_dataset(
-        self,
-    ) -> list:
+    def get_metric_indices_from_combined_dataset(self) -> list:
         metric_indices = [
             int(filename.removeprefix("metric-").removesuffix("-kpi-map.csv"))
-            for filename in os.listdir(self.path_metrics)
+            for filename in os.listdir(self.combined_metrics_path)
             if filename.endswith("kpi-map.csv")
         ]
         metric_indices.sort()

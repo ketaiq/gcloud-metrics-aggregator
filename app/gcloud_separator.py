@@ -49,8 +49,8 @@ class GCloudSeparator(GCloudMetrics):
     ):
         start_ts = datetime.fromisoformat(experiment["start"]).timestamp()
         end_ts = datetime.fromisoformat(experiment["end"]).timestamp()
-        df_pods_metadata = GCloudMetrics.read_pods_metadata(
-            start_ts, end_ts, experiment["path_pods_info"]
+        df_pods_metadata = self.read_pods_metadata(experiment["name"],
+            start_ts, end_ts
         )
         kpi_list = []
         new_kpi_map = []

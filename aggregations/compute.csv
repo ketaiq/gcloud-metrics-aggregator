@@ -1,0 +1,53 @@
+index,name,groups,methods
+1,compute.googleapis.com/firewall/dropped_bytes_count,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+2,compute.googleapis.com/firewall/dropped_packets_count,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+3,compute.googleapis.com/guest/cpu/load_15m,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+4,compute.googleapis.com/guest/cpu/load_1m,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+5,compute.googleapis.com/guest/cpu/load_5m,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+6,compute.googleapis.com/guest/cpu/runnable_task_count,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+7,compute.googleapis.com/guest/cpu/usage_time,['state'],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+8,compute.googleapis.com/guest/disk/bytes_used,"['device_name', 'fs_type', 'state']","['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+9,compute.googleapis.com/guest/disk/io_time,['device_name'],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+10,compute.googleapis.com/guest/disk/merged_operation_count,"['device_name', 'direction']","['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+11,compute.googleapis.com/guest/disk/operation_bytes_count,"['device_name', 'direction']","['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+12,compute.googleapis.com/guest/disk/operation_count,"['device_name', 'direction']","['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+13,compute.googleapis.com/guest/disk/operation_time,"['device_name', 'direction']","['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+14,compute.googleapis.com/guest/disk/queue_length,['device_name'],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+15,compute.googleapis.com/guest/disk/weighted_io_time,['device_name'],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+16,compute.googleapis.com/guest/memory/anonymous_used,['state'],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+17,compute.googleapis.com/guest/memory/bytes_used,['state'],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+18,compute.googleapis.com/guest/memory/dirty_used,['state'],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+19,compute.googleapis.com/guest/memory/page_cache_used,['state'],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+22,compute.googleapis.com/guest/system/problem_count,[],['sum']
+23,compute.googleapis.com/guest/system/problem_state,[],['sum']
+24,compute.googleapis.com/guest/system/uptime,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+27,compute.googleapis.com/instance/cpu/scheduler_wait_time,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+28,compute.googleapis.com/instance/cpu/usage_time,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+29,compute.googleapis.com/instance/cpu/utilization,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+30,compute.googleapis.com/instance/disk/average_io_latency,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+31,compute.googleapis.com/instance/disk/average_io_queue_depth,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+32,compute.googleapis.com/instance/disk/max_read_bytes_count,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+33,compute.googleapis.com/instance/disk/max_read_ops_count,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+34,compute.googleapis.com/instance/disk/max_write_bytes_count,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+35,compute.googleapis.com/instance/disk/max_write_ops_count,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+39,compute.googleapis.com/instance/disk/read_bytes_count,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+40,compute.googleapis.com/instance/disk/read_ops_count,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+41,compute.googleapis.com/instance/disk/write_bytes_count,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+42,compute.googleapis.com/instance/disk/write_ops_count,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+44,compute.googleapis.com/instance/integrity/early_boot_validation_status,[],['sum']
+45,compute.googleapis.com/instance/integrity/late_boot_validation_status,[],['sum']
+47,compute.googleapis.com/instance/memory/balloon/ram_used,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+50,compute.googleapis.com/instance/network/received_bytes_count,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+51,compute.googleapis.com/instance/network/received_packets_count,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+52,compute.googleapis.com/instance/network/sent_bytes_count,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+53,compute.googleapis.com/instance/network/sent_packets_count,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+54,compute.googleapis.com/instance/uptime,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+55,compute.googleapis.com/instance/uptime_total,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+59,compute.googleapis.com/instance_group/size,[],[]
+63,compute.googleapis.com/nat/allocated_ports,[],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+64,compute.googleapis.com/nat/closed_connections_count,['ip_protocol'],['sum']
+65,compute.googleapis.com/nat/dropped_received_packets_count,['ip_protocol'],['sum']
+66,compute.googleapis.com/nat/dropped_sent_packets_count,['ip_protocol'],['sum']
+67,compute.googleapis.com/nat/new_connections_count,['ip_protocol'],['sum']
+68,compute.googleapis.com/nat/open_connections,['ip_protocol'],['sum']
+69,compute.googleapis.com/nat/port_usage,['ip_protocol'],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"

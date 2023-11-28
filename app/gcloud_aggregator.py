@@ -1,3 +1,4 @@
+import csv
 import logging
 import os
 import re
@@ -16,29 +17,39 @@ from app.gcloud_metrics import GCloudMetrics
 
 
 class GCloudAggregator(GCloudMetrics):
+    PATH_CONSTANT_METRIC = os.path.join("aggregations", "constant_metrics.csv")
+
     def __init__(
         self,
         filename_exp_yaml: str,
         filename_metadata_yaml: str,
         exp_index: int,
         strategy: Strategy,
+        for_normal_dataset: bool,
         only_pod_metrics: bool = False,
     ):
         super().__init__(filename_exp_yaml)
         self.experiment = self.experiments[exp_index]
         self.metadata = GCloudAggregator.parse_metadata_yaml(filename_metadata_yaml)
         self.strategy = strategy
-        self.combined_metrics_path = os.path.join(self.build_path_experiment(self.experiment["name"]), GCloudMetrics.FDNAME_MERGED_KPIS)
+        self.combined_metrics_path = os.path.join(
+            self.build_path_experiment(self.experiment["name"]),
+            GCloudMetrics.FDNAME_MERGED_KPIS,
+        )
         self.aggregated_metrics_path = os.path.join(
-            self.build_path_experiment(self.experiment["name"]), GCloudMetrics.FDNAME_AGGREGATED_KPIS
+            self.build_path_experiment(self.experiment["name"]),
+            GCloudMetrics.FDNAME_AGGREGATED_KPIS,
         )
         self.complete_time_series_path = os.path.join(
-            self.build_path_experiment(self.experiment["name"]), f'{self.experiment["name"]}.csv'
+            self.build_path_experiment(self.experiment["name"]),
+            f'{self.experiment["name"]}.csv',
         )
         if not os.path.exists(self.aggregated_metrics_path):
             os.mkdir(self.aggregated_metrics_path)
         self.df_metric_type_map = self.read_metric_type_map(self.experiment["name"])
+        self.for_normal_dataset = for_normal_dataset
         self.only_pod_metrics = only_pod_metrics
+        self.constant_metrics = pd.read_csv(GCloudAggregator.PATH_CONSTANT_METRIC)
 
     @staticmethod
     def parse_metadata_yaml(filename_metadata_yaml: str):
@@ -56,7 +67,9 @@ class GCloudAggregator(GCloudMetrics):
         return series
 
     def read_combined_kpis(self, metric_index: int) -> pd.DataFrame:
-        metric_path = os.path.join(self.combined_metrics_path, f"metric-{metric_index}.csv")
+        metric_path = os.path.join(
+            self.combined_metrics_path, f"metric-{metric_index}.csv"
+        )
         df_metric = pd.read_csv(metric_path)
         df_metric["timestamp"] = pd.to_datetime(
             df_metric["timestamp"], unit="s"
@@ -74,9 +87,26 @@ class GCloudAggregator(GCloudMetrics):
         """Aggregate all available KPIs in one metric to reduce dimensionality."""
         metric_name = self.df_metric_type_map.loc[metric_index]["name"]
         df_kpi_map = pd.read_csv(
-            os.path.join(self.combined_metrics_path, f"metric-{metric_index}-kpi-map.csv")
+            os.path.join(
+                self.combined_metrics_path, f"metric-{metric_index}-kpi-map.csv"
+            )
         )
         df_metric = self.read_combined_kpis(metric_index)
+
+        # skip constant metrics
+        constant_metric = self.constant_metrics[
+            (self.constant_metrics["index"] == metric_index)
+            & (self.constant_metrics["name"] == metric_name)
+        ]
+        if not constant_metric.empty:
+            return
+
+        if self.for_normal_dataset and df_metric.std().std() == 0:
+            GCloudAggregator.record_constant_metric(metric_index, metric_name)
+            logging.info(
+                f"Skip metric {metric_index} {metric_name} due to constant values."
+            )
+            return
         logging.info(f"Aggregating metric {metric_index} {metric_name} ...")
 
         df_agg_metric = None
@@ -122,6 +152,8 @@ class GCloudAggregator(GCloudMetrics):
                 os.path.join(self.aggregated_metrics_path, f"metric-{metric_index}.csv")
             ):
                 continue
+            if metric_index > 73:
+                break
             self.aggregate_one_metric(metric_index)
 
     def merge_all_metrics(self, ignore_buffer: bool = False):
@@ -178,3 +210,9 @@ class GCloudAggregator(GCloudMetrics):
         ]
         metric_indices.sort()
         return metric_indices
+
+    @staticmethod
+    def record_constant_metric(index: int, name: str):
+        """Record a constant metric in the file."""
+        with open(GCloudAggregator.PATH_CONSTANT_METRIC, mode="a", newline="") as f:
+            csv.writer(f).writerow([index, name])

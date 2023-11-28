@@ -1,5 +1,9 @@
+import logging
+import os
 import pandas as pd
 from app.agg.aggregate_handler import AggregateHandler
+import csv
+import ast
 
 
 class ComputeAggHandler(AggregateHandler):
@@ -11,6 +15,8 @@ class ComputeAggHandler(AggregateHandler):
         "zone",
         "mount_option",
     }
+    IP_PROTOCOL = {"1": "icmp", "6": "tcp", "17": "udp"}
+    PATH_AGGREGATIONS = os.path.join("aggregations", "compute.csv")
 
     def __init__(
         self,
@@ -20,18 +26,58 @@ class ComputeAggHandler(AggregateHandler):
         df_metric: pd.DataFrame,
     ):
         super().__init__(metric_index, metric_name, df_kpi_map, df_metric)
+        self.aggregations = pd.read_csv(ComputeAggHandler.PATH_AGGREGATIONS)
+        self.aggregations["groups"] = self.aggregations["groups"].apply(
+            ast.literal_eval
+        )
+        self.aggregations["methods"] = self.aggregations["methods"].apply(
+            ast.literal_eval
+        )
 
     def aggregate_kpis(self):
         # drop useless columns
         cols_to_drop = self.select_columns_to_drop()
         self.df_kpi_map = self.df_kpi_map.drop(cols_to_drop, axis=1)
+        self.transform_kpi_map()
+        aggregation = self.aggregations[
+            (self.aggregations["name"] == self.metric_name)
+            & (self.aggregations["index"] == self.metric_index)
+        ]
 
-        if len(self.df_kpi_map.columns) == 1:
+        if not aggregation.empty:
+            aggregation = aggregation.iloc[0]
+            groups = aggregation["groups"]
+            methods = aggregation["methods"]
+            if groups and methods:
+                return self.aggregate_with_groups(groups, methods)
+            elif groups and len(groups) == 1:
+                return self.df_metric.rename(columns=self.gen_map_columns(groups[0]))
+            elif groups and len(groups) > 1:
+                msg = f"Fail to transform {self.metric_name} because of more than one groups: {groups}!"
+                logging.error(msg)
+                raise ValueError(msg)
+            elif methods:
+                return self.apply_aggregation(self.df_metric, methods)
+            else:
+                return self.df_metric.rename(columns=self.gen_map_columns())
+        elif set(self.df_kpi_map.columns) == {"kpi_index"}:
             # aggregate KPIs without grouping any fields in KPI map
+            ComputeAggHandler.record_new_aggregation(
+                self.metric_index,
+                self.metric_name,
+                [],
+                ["min", "max", "mean", "median", "first_quartile", "third_quartile"],
+            )
             return self.apply_aggregation(self.df_metric)
         else:
             group_columns = list(
                 self.df_kpi_map.drop(columns=[AggregateHandler.COL_KPI_INDEX]).columns
+            )
+            ComputeAggHandler.record_new_aggregation(
+                self.metric_index,
+                self.metric_name,
+                group_columns,
+                ["min", "max", "mean", "median", "first_quartile", "third_quartile"],
             )
             return self.aggregate_with_groups(group_columns)
 
@@ -47,7 +93,20 @@ class ComputeAggHandler(AggregateHandler):
             set(df_kpi_map_nunique[df_kpi_map_nunique == 1].index)
             | ComputeAggHandler.USELESS_COLUMNS
         )
-        cols_to_drop = cols_to_drop.intersection(set(self.df_kpi_map.columns))
         if self.metric_name.startswith("compute.googleapis.com/instance/disk"):
             cols_to_drop.add("device_name")
+        cols_to_drop = cols_to_drop.intersection(set(self.df_kpi_map.columns))
         return cols_to_drop
+
+    def transform_kpi_map(self):
+        """Transform KPI map into a human interpretable form."""
+        if "ip_protocol" in self.df_kpi_map.columns:
+            self.df_kpi_map["ip_protocol"] = self.df_kpi_map["ip_protocol"].apply(
+                lambda v: ComputeAggHandler.IP_PROTOCOL[str(v)]
+            )
+
+    @staticmethod
+    def record_new_aggregation(index: int, name: str, groups: list, methods: list):
+        """Record a new aggregation in the file."""
+        with open(ComputeAggHandler.PATH_AGGREGATIONS, mode="a", newline="") as f:
+            csv.writer(f).writerow([index, name, groups, methods])

@@ -16,6 +16,7 @@ def aggregate_metrics(fname_exp_yaml: str, filename_metadata_yaml: str, exp_inde
         filename_metadata_yaml,
         exp_index,
         strategy=Strategy.CONSIDER_POD_PHASES,
+        for_normal_dataset=True,
     )
     gcloud_aggregator.aggregate_all_metrics()
     gcloud_aggregator.merge_all_metrics()
@@ -109,9 +110,11 @@ def aggregate_metrics_with_multiprocess():
         pool.close()
         pool.join()
 
+
 def process_single_experiment(fname_exp_yaml: str):
-    separate_metrics(fname_exp_yaml, 0)
+    # separate_metrics(fname_exp_yaml, 0)
     aggregate_metrics(fname_exp_yaml, "train_ticket.yaml", 0)
+
 
 def main():
     # define logging format
@@ -119,8 +122,8 @@ def main():
         level=logging.INFO,
         format="%(asctime)s %(levelname)s:%(message)s",
     )
-    process_single_experiment("memory-stress-ts-auth-service-111717.yaml")
-    
+    process_single_experiment("normal-2weeks.yaml")
+
     # separate_metrics_with_multiprocess()
     # aggregate_metrics_with_multiprocess()
     # merge_normal_experiments("normal-fix-4days.yaml", False, True)

@@ -42,7 +42,9 @@ class GCloudMetrics:
     def get_metric_indices_from_raw_dataset(
         self, exp_name: str, only_pod_metrics: bool = False
     ) -> list:
-        path_raw_dataset = os.path.join(self.build_path_experiment(exp_name), GCloudMetrics.FDNAME_ORIGINAL_KPIS)
+        path_raw_dataset = os.path.join(
+            self.build_path_experiment(exp_name), GCloudMetrics.FDNAME_ORIGINAL_KPIS
+        )
         metric_indices = [
             int(fname.removeprefix(GCloudMetrics.FNAME_METRIC_TYPE_PREFIX))
             for fname in os.listdir(path_raw_dataset)
@@ -88,7 +90,10 @@ class GCloudMetrics:
         """
         start_dt = datetime.fromisoformat(experiment["start"]).timestamp()
         end_dt = datetime.fromisoformat(experiment["end"]).timestamp()
-        path_nodes_info = os.path.join(self.build_path_experiment(experiment["name"]), GCloudMetrics.FNAME_NODES_INFO)
+        path_nodes_info = os.path.join(
+            self.path_experiments,
+            GCloudMetrics.FNAME_NODES_INFO,
+        )
         nodes_metadata = {"instance_name": [], "instance_id": []}
         for filename in os.listdir(path_nodes_info):
             info_dt = int(filename.removesuffix(".json"))
@@ -97,7 +102,10 @@ class GCloudMetrics:
             with open(os.path.join(path_nodes_info, filename)) as file_nodes_info:
                 nodes_info = json.load(file_nodes_info)
             for node in nodes_info["items"]:
-                if "container.googleapis.com/instance_id" not in node["metadata"]["annotations"]:
+                if (
+                    "container.googleapis.com/instance_id"
+                    not in node["metadata"]["annotations"]
+                ):
                     continue
                 nodes_metadata["instance_name"].append(node["metadata"]["name"])
                 nodes_metadata["instance_id"].append(
@@ -127,7 +135,9 @@ class GCloudMetrics:
             metadata of pods in pandas DataFrame, including names and phases
         """
         pods_metadata = {"timestamp": [], "pod_name": [], "pod_phase": []}
-        path_pods_info = os.path.join(self.build_path_experiment(exp_name), GCloudMetrics.FNAME_PODS_INFO)
+        path_pods_info = os.path.join(
+            self.path_experiments, GCloudMetrics.FNAME_PODS_INFO
+        )
         for filename in os.listdir(path_pods_info):
             info_ts = int(filename.removesuffix(".json"))
             if info_ts < start_ts or info_ts > end_ts:
@@ -204,12 +214,8 @@ class GCloudMetrics:
         )
 
     def build_path_experiment(self, exp_name: str) -> str:
-        path1 = os.path.join(
-            self.path_experiments, exp_name
-        )
-        path2 = os.path.join(
-            self.path_experiments
-        )
+        path1 = os.path.join(self.path_experiments, exp_name)
+        path2 = os.path.join(self.path_experiments)
         if os.path.exists(path1):
             return path1
         elif os.path.exists(path2):
@@ -227,13 +233,13 @@ class GCloudMetrics:
 
     def build_path_kpi(self, metric_index: int, kpi_index: int, exp_name: str) -> str:
         return os.path.join(
-                self.build_path_experiment(exp_name),
-                GCloudMetrics.FDNAME_ORIGINAL_KPIS,
-                GCloudMetrics.FNAME_METRIC_TYPE_PREFIX + str(metric_index),
-                GCloudMetrics.FNAME_KPI_PREFIX
-                + str(kpi_index)
-                + GCloudMetrics.FNAME_KPI_SUFFIX,
-            )
+            self.build_path_experiment(exp_name),
+            GCloudMetrics.FDNAME_ORIGINAL_KPIS,
+            GCloudMetrics.FNAME_METRIC_TYPE_PREFIX + str(metric_index),
+            GCloudMetrics.FNAME_KPI_PREFIX
+            + str(kpi_index)
+            + GCloudMetrics.FNAME_KPI_SUFFIX,
+        )
 
     def build_path_folder_merged_kpis(self, exp_name: str) -> str:
         path_folder_merged_kpis = os.path.join(

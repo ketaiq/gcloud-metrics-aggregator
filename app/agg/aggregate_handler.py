@@ -37,6 +37,15 @@ class AggregateHandler:
                 AggregateHandler.first_quartile,
                 AggregateHandler.third_quartile,
             ]
+        else:
+            for name, func in {
+                "first_quartile": AggregateHandler.first_quartile,
+                "third_quartile": AggregateHandler.third_quartile,
+            }.items():
+                if name in agg_methods:
+                    index = agg_methods.index(name)
+                    agg_methods[index] = func
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
             return df_metric_to_agg.agg(agg_methods, axis=1)
@@ -75,6 +84,31 @@ class AggregateHandler:
                     )
                 )
         return pd.concat(list_df_agg_metric, axis=1)
+
+    def gen_map_columns(self, target_column: str = None) -> dict:
+        if len(self.df_kpi_map) == 1:
+            return {"kpi-0-value": "kpi-value"}
+        df_kpi_map = self.df_kpi_map.set_index("kpi_index")
+        map_columns = {}
+        for kpi_index in df_kpi_map.index:
+            original_column_name = f"kpi-{kpi_index}-value"
+            # find distinguished words from KPI map as KPI names
+            if target_column is None:
+                map_columns[original_column_name] = "-".join(
+                    list(
+                        (
+                            name.upper() + "-" + str(value).lower()
+                            for name, value in df_kpi_map.loc[kpi_index]
+                            .to_dict()
+                            .items()
+                        )
+                    )
+                )
+            else:
+                map_columns[original_column_name] = df_kpi_map.loc[
+                    kpi_index, target_column
+                ]
+        return map_columns
 
     @staticmethod
     def first_quartile(series: pd.Series):

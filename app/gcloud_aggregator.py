@@ -26,12 +26,14 @@ class GCloudAggregator(GCloudMetrics):
         exp_index: int,
         strategy: Strategy,
         for_normal_dataset: bool,
+        enforce_existing_aggregations: bool,
         only_pod_metrics: bool = False,
     ):
         super().__init__(filename_exp_yaml)
         self.experiment = self.experiments[exp_index]
         self.metadata = GCloudAggregator.parse_metadata_yaml(filename_metadata_yaml)
         self.strategy = strategy
+        self.enforce_existing_aggregations = enforce_existing_aggregations
         self.combined_metrics_path = os.path.join(
             self.build_path_experiment(self.experiment["name"]),
             GCloudMetrics.FDNAME_MERGED_KPIS,
@@ -60,28 +62,15 @@ class GCloudAggregator(GCloudMetrics):
         with open(path_metadata_yaml) as file_metadata_yaml:
             return yaml.safe_load(file_metadata_yaml)
 
-    @staticmethod
-    def reduce_cumulative(series: pd.Series) -> pd.Series:
-        series = series.sub(series.shift())
-        series = series.mask(series < 0)
-        return series
-
     def read_combined_kpis(self, metric_index: int) -> pd.DataFrame:
         metric_path = os.path.join(
             self.combined_metrics_path, f"metric-{metric_index}.csv"
         )
         df_metric = pd.read_csv(metric_path)
         df_metric["timestamp"] = pd.to_datetime(
-            df_metric["timestamp"], unit="s"
-        ).dt.round("min")
-        df_metric = df_metric.set_index("timestamp").sort_index()
-        # aggregate duplicated minutes
-        if len(df_metric.index) != len(df_metric.index.drop_duplicates()):
-            df_metric = df_metric.groupby("timestamp").agg("mean")
-        metric_kind = self.df_metric_type_map.loc[metric_index]["kind"]
-        if metric_kind == GCloudMetricKind.CUMULATIVE.value:
-            df_metric = df_metric.apply(GCloudAggregator.reduce_cumulative)
-        return df_metric
+            df_metric["timestamp"], format="ISO8601"
+        )
+        return df_metric.set_index("timestamp").sort_index()
 
     def aggregate_one_metric(self, metric_index: int):
         """Aggregate all available KPIs in one metric to reduce dimensionality."""
@@ -101,18 +90,16 @@ class GCloudAggregator(GCloudMetrics):
         if not constant_metric.empty:
             return
 
-        if self.for_normal_dataset and df_metric.std().std() == 0:
-            GCloudAggregator.record_constant_metric(metric_index, metric_name)
-            logging.info(
-                f"Skip metric {metric_index} {metric_name} due to constant values."
-            )
-            return
         logging.info(f"Aggregating metric {metric_index} {metric_name} ...")
 
         df_agg_metric = None
         if metric_name.startswith("compute.googleapis.com"):
             df_agg_metric = ComputeAggHandler(
-                metric_index, metric_name, df_kpi_map, df_metric
+                metric_index,
+                metric_name,
+                df_kpi_map,
+                df_metric,
+                self.enforce_existing_aggregations,
             ).aggregate_kpis()
         elif metric_name.startswith("networking.googleapis.com"):
             df_agg_metric = NetworkingAggHandler(
@@ -122,18 +109,33 @@ class GCloudAggregator(GCloudMetrics):
                 df_metric,
                 self.metadata,
                 self.strategy,
+                self.enforce_existing_aggregations,
             ).aggregate_kpis()
         elif metric_name.startswith("prometheus.googleapis.com"):
             df_agg_metric = PrometheusAggHandler(
-                metric_index, metric_name, df_kpi_map, df_metric, self.metadata
+                metric_index,
+                metric_name,
+                df_kpi_map,
+                df_metric,
+                self.metadata,
+                self.enforce_existing_aggregations,
             ).aggregate_kpis()
         elif metric_name.startswith("logging.googleapis.com"):
             df_agg_metric = LoggingAggHandler(
-                metric_index, metric_name, df_kpi_map, df_metric
+                metric_index,
+                metric_name,
+                df_kpi_map,
+                df_metric,
+                self.enforce_existing_aggregations,
             ).aggregate_kpis()
         elif metric_name.startswith("kubernetes.io"):
             df_agg_metric = KubernetesAggHandler(
-                metric_index, metric_name, df_kpi_map, df_metric, self.metadata
+                metric_index,
+                metric_name,
+                df_kpi_map,
+                df_metric,
+                self.metadata,
+                self.enforce_existing_aggregations,
             ).aggregate_kpis()
         else:
             logging.error(f"Metric {metric_name} is not supported!")
@@ -152,8 +154,6 @@ class GCloudAggregator(GCloudMetrics):
                 os.path.join(self.aggregated_metrics_path, f"metric-{metric_index}.csv")
             ):
                 continue
-            if metric_index > 73:
-                break
             self.aggregate_one_metric(metric_index)
 
     def merge_all_metrics(self, ignore_buffer: bool = False):

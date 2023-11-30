@@ -1,0 +1,3 @@
+index,name,groups,methods
+92,logging.googleapis.com/byte_count,['severity'],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"
+93,logging.googleapis.com/log_entry_count,['severity'],"['min', 'max', 'mean', 'median', 'first_quartile', 'third_quartile']"

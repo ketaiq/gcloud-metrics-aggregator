@@ -249,3 +249,9 @@ class GCloudMetrics:
         if not os.path.exists(path_folder_merged_kpis):
             os.mkdir(path_folder_merged_kpis)
         return path_folder_merged_kpis
+
+    @staticmethod
+    def reduce_cumulative(series: pd.Series) -> pd.Series:
+        series = series.sub(series.shift())
+        series = series.mask(series < 0)
+        return series

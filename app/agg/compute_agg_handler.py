@@ -16,7 +16,6 @@ class ComputeAggHandler(AggregateHandler):
         "mount_option",
     }
     IP_PROTOCOL = {"1": "icmp", "6": "tcp", "17": "udp"}
-    PATH_AGGREGATIONS = os.path.join("aggregations", "compute.csv")
 
     def __init__(
         self,
@@ -24,14 +23,15 @@ class ComputeAggHandler(AggregateHandler):
         metric_name: str,
         df_kpi_map: pd.DataFrame,
         df_metric: pd.DataFrame,
+        enforce_existing_aggregations: bool,
     ):
-        super().__init__(metric_index, metric_name, df_kpi_map, df_metric)
-        self.aggregations = pd.read_csv(ComputeAggHandler.PATH_AGGREGATIONS)
-        self.aggregations["groups"] = self.aggregations["groups"].apply(
-            ast.literal_eval
-        )
-        self.aggregations["methods"] = self.aggregations["methods"].apply(
-            ast.literal_eval
+        super().__init__(
+            "compute",
+            metric_index,
+            metric_name,
+            df_kpi_map,
+            df_metric,
+            enforce_existing_aggregations,
         )
 
     def aggregate_kpis(self):
@@ -45,24 +45,17 @@ class ComputeAggHandler(AggregateHandler):
         ]
 
         if not aggregation.empty:
-            aggregation = aggregation.iloc[0]
-            groups = aggregation["groups"]
-            methods = aggregation["methods"]
-            if groups and methods:
-                return self.aggregate_with_groups(groups, methods)
-            elif groups and len(groups) == 1:
-                return self.df_metric.rename(columns=self.gen_map_columns(groups[0]))
-            elif groups and len(groups) > 1:
-                msg = f"Fail to transform {self.metric_name} because of more than one groups: {groups}!"
-                logging.error(msg)
-                raise ValueError(msg)
-            elif methods:
-                return self.apply_aggregation(self.df_metric, methods)
-            else:
-                return self.df_metric.rename(columns=self.gen_map_columns())
-        elif set(self.df_kpi_map.columns) == {"kpi_index"}:
+            # use an existing aggregation record
+            return self.apply_existing_aggregation(aggregation)
+
+        if self.enforce_existing_aggregations:
+            msg = f"Missing aggregation record for metric {self.metric_index} {self.metric_name}!"
+            logging.error(msg)
+            raise ValueError(msg)
+
+        if set(self.df_kpi_map.columns) == {"kpi_index"}:
             # aggregate KPIs without grouping any fields in KPI map
-            ComputeAggHandler.record_new_aggregation(
+            self.record_new_aggregation(
                 self.metric_index,
                 self.metric_name,
                 [],
@@ -73,7 +66,7 @@ class ComputeAggHandler(AggregateHandler):
             group_columns = list(
                 self.df_kpi_map.drop(columns=[AggregateHandler.COL_KPI_INDEX]).columns
             )
-            ComputeAggHandler.record_new_aggregation(
+            self.record_new_aggregation(
                 self.metric_index,
                 self.metric_name,
                 group_columns,
@@ -104,9 +97,3 @@ class ComputeAggHandler(AggregateHandler):
             self.df_kpi_map["ip_protocol"] = self.df_kpi_map["ip_protocol"].apply(
                 lambda v: ComputeAggHandler.IP_PROTOCOL[str(v)]
             )
-
-    @staticmethod
-    def record_new_aggregation(index: int, name: str, groups: list, methods: list):
-        """Record a new aggregation in the file."""
-        with open(ComputeAggHandler.PATH_AGGREGATIONS, mode="a", newline="") as f:
-            csv.writer(f).writerow([index, name, groups, methods])

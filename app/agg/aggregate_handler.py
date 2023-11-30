@@ -1,3 +1,5 @@
+import ast
+import csv
 import os
 import pandas as pd
 import logging
@@ -9,15 +11,51 @@ class AggregateHandler:
 
     def __init__(
         self,
+        handler_name: str,
         metric_index: int,
         metric_name: str,
         df_kpi_map: pd.DataFrame,
         df_metric: pd.DataFrame,
+        enforce_existing_aggregations: bool,
     ):
         self.metric_index = metric_index
         self.metric_name = metric_name
         self.df_kpi_map = df_kpi_map
         self.df_metric = df_metric
+        self.enforce_existing_aggregations = enforce_existing_aggregations
+        self.path_aggregations = os.path.join("aggregations", f"{handler_name}.csv")
+        self.aggregations = pd.read_csv(self.path_aggregations)
+        self.aggregations["groups"] = self.aggregations["groups"].apply(
+            ast.literal_eval
+        )
+        self.aggregations["methods"] = self.aggregations["methods"].apply(
+            ast.literal_eval
+        )
+
+    def record_new_aggregation(
+        self, index: int, name: str, groups: list, methods: list
+    ):
+        """Record a new aggregation in the file."""
+        with open(self.path_aggregations, mode="a", newline="") as f:
+            csv.writer(f).writerow([index, name, groups, methods])
+
+    def apply_existing_aggregation(self, aggregation: pd.Series) -> pd.DataFrame:
+        """Apply an existing aggregation record."""
+        aggregation = aggregation.iloc[0]
+        groups = aggregation["groups"]
+        methods = aggregation["methods"]
+        if groups and methods:
+            return self.aggregate_with_groups(groups, methods)
+        elif groups and len(groups) == 1:
+            return self.df_metric.rename(columns=self.gen_map_columns(groups[0]))
+        elif groups and len(groups) > 1:
+            msg = f"Fail to transform {self.metric_name} because of more than one groups: {groups}!"
+            logging.error(msg)
+            raise ValueError(msg)
+        elif methods:
+            return self.apply_aggregation(self.df_metric, methods)
+        else:
+            return self.df_metric.rename(columns=self.gen_map_columns())
 
     def aggregate_kpis(self):
         logging.warning(
@@ -140,7 +178,7 @@ class AggregateHandler:
                 "-".join(
                     list(
                         (
-                            name.upper() + "-" + str(value)
+                            name.upper() + "-" + str(value).lower()
                             for name, value in zip(df_kpi_indices.index.names, index)
                         )
                     )
@@ -148,4 +186,4 @@ class AggregateHandler:
                 + "-"
             )
         else:
-            return df_kpi_indices.index.name.upper() + "-" + str(index) + "-"
+            return df_kpi_indices.index.name.upper() + "-" + str(index).lower() + "-"

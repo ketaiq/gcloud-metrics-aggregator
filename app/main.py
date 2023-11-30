@@ -16,6 +16,7 @@ def aggregate_metrics(fname_exp_yaml: str, filename_metadata_yaml: str, exp_inde
         filename_metadata_yaml,
         exp_index,
         strategy=Strategy.CONSIDER_POD_PHASES,
+        enforce_existing_aggregations=False,
         for_normal_dataset=True,
     )
     gcloud_aggregator.aggregate_all_metrics()
@@ -24,9 +25,9 @@ def aggregate_metrics(fname_exp_yaml: str, filename_metadata_yaml: str, exp_inde
 
 def separate_metrics(fname_exp_yaml: str, exp_index: int):
     gcloud_separator = GCloudSeparator(
-        fname_exp_yaml, strategy=Strategy.CONSIDER_POD_PHASES
+        fname_exp_yaml, exp_index, strategy=Strategy.CONSIDER_POD_PHASES
     )
-    gcloud_separator.separate_kpis(exp_index)
+    gcloud_separator.separate_kpis()
 
 
 def merge_normal_experiments(
@@ -86,12 +87,7 @@ def merge_normal_experiments(
 
 
 def separate_metrics_with_multiprocess():
-    inputs = (
-        ("normal-fix-4days.yaml", 0),
-        ("normal-fix-4days.yaml", 1),
-        ("normal-fix-4days.yaml", 2),
-        ("normal-fix-4days.yaml", 3),
-    )
+    inputs = [("normal-2weeks.yaml", i) for i in range(14)]
     with Pool(processes=len(inputs)) as pool:
         pool.starmap(separate_metrics, inputs)
         pool.close()

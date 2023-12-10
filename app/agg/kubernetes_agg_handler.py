@@ -42,8 +42,8 @@ class KubernetesAggHandler(AggregateHandler):
 
         if self.enforce_existing_aggregations:
             msg = f"Missing aggregation record for metric {self.metric_index} {self.metric_name}!"
-            logging.error(msg)
-            raise ValueError(msg)
+            logging.warning(msg)
+            return None
 
         if self.metric_name.startswith("kubernetes.io/autoscaler"):
             self.df_kpi_map = self.df_kpi_map.set_index("kpi_index")

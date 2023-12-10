@@ -140,8 +140,8 @@ class GCloudAggregator(GCloudMetrics):
         else:
             logging.error(f"Metric {metric_name} is not supported!")
 
-        logging.info(f"KPIs after aggregation are {df_agg_metric.columns}")
         if df_agg_metric is not None and not df_agg_metric.empty:
+            logging.info(f"KPIs after aggregation are {df_agg_metric.columns}")
             df_agg_metric.to_csv(
                 os.path.join(self.aggregated_metrics_path, f"metric-{metric_index}.csv")
             )

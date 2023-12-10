@@ -29,6 +29,7 @@ class PrometheusAggHandler(AggregateHandler):
         # drop useless columns
         cols_to_drop = self.select_columns_to_drop()
         self.df_kpi_map = self.df_kpi_map.drop(cols_to_drop, axis=1)
+        self.transform_kpi_map()
 
         aggregation = self.aggregations[
             (self.aggregations["name"] == self.metric_name)
@@ -41,8 +42,8 @@ class PrometheusAggHandler(AggregateHandler):
 
         if self.enforce_existing_aggregations:
             msg = f"Missing aggregation record for metric {self.metric_index} {self.metric_name}!"
-            logging.error(msg)
-            raise ValueError(msg)
+            logging.warning(msg)
+            return None
 
         if self.metric_name.startswith("prometheus.googleapis.com/kube_deployment"):
             self.record_new_aggregation(
@@ -75,11 +76,6 @@ class PrometheusAggHandler(AggregateHandler):
             )
             return self.aggregate_with_groups(group_columns, ["sum"])
         elif self.metric_name.startswith("prometheus.googleapis.com/kube_pod_status"):
-            pattern_pod_names = "|".join(self.metadata["services"])
-            self.df_kpi_map["service"] = self.df_kpi_map["pod"].str.extract(
-                f"({pattern_pod_names})"
-            )
-            self.df_kpi_map = self.df_kpi_map.drop(["pod"], axis=1)
             group_columns = list(
                 self.df_kpi_map.drop(columns=[AggregateHandler.COL_KPI_INDEX]).columns
             )
@@ -91,7 +87,7 @@ class PrometheusAggHandler(AggregateHandler):
             )
             return self.aggregate_with_groups(group_columns, ["sum"])
 
-        if len(self.df_kpi_map.columns) == 1 and len(self.df_kpi_map != 1):
+        if len(self.df_kpi_map.columns) == 1 and len(self.df_kpi_map) != 1:
             # aggregate KPIs without grouping any fields in KPI map
             self.record_new_aggregation(
                 self.metric_index,
@@ -139,3 +135,12 @@ class PrometheusAggHandler(AggregateHandler):
         cols_to_drop.discard("pod_phase")
         cols_to_drop.discard("container")
         return cols_to_drop
+
+    def transform_kpi_map(self):
+        """Transform KPI map into a human interpretable form."""
+        if self.metric_name.startswith("prometheus.googleapis.com/kube_pod_status"):
+            pattern_pod_names = "|".join(self.metadata["services"])
+            self.df_kpi_map["service"] = self.df_kpi_map["pod"].str.extract(
+                f"({pattern_pod_names})"
+            )
+            self.df_kpi_map = self.df_kpi_map.drop(["pod"], axis=1)

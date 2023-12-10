@@ -87,28 +87,35 @@ def merge_normal_experiments(
 
 
 def separate_metrics_with_multiprocess():
-    inputs = [("normal-2weeks.yaml", i) for i in range(14)]
-    with Pool(processes=len(inputs)) as pool:
+    inputs = [
+        ("memory-stress-ts-auth-service-111717.yaml", 0),
+        ("memory-stress-ts-auth-service-112220.yaml", 0),
+        ("network-delay-ts-auth-service-112515.yaml", 0),
+    ]
+    num_processes = min(len(inputs), 8)
+    with Pool(processes=num_processes) as pool:
         pool.starmap(separate_metrics, inputs)
         pool.close()
         pool.join()
 
 
 def aggregate_metrics_with_multiprocess():
-    inputs = (
-        ("normal-fix-4days-day-1.yaml", "train_ticket.yaml"),
-        ("normal-fix-4days-day-2.yaml", "train_ticket.yaml"),
-        ("normal-fix-4days-day-3.yaml", "train_ticket.yaml"),
-        ("normal-fix-4days-day-4.yaml", "train_ticket.yaml"),
-    )
-    with Pool(processes=len(inputs)) as pool:
+    # inputs = [("normal-2weeks.yaml", "train_ticket.yaml", i) for i in range(14)]
+    inputs = [
+        ("cpu-stress-ts-auth-service-111415.yaml", "train_ticket.yaml", 0),
+        ("memory-stress-ts-auth-service-111717.yaml", "train_ticket.yaml", 0),
+        ("memory-stress-ts-auth-service-112220.yaml", "train_ticket.yaml", 0),
+        ("network-delay-ts-auth-service-112515.yaml", "train_ticket.yaml", 0),
+    ]
+    num_processes = min(len(inputs), 8)
+    with Pool(processes=num_processes) as pool:
         pool.starmap(aggregate_metrics, inputs)
         pool.close()
         pool.join()
 
 
 def process_single_experiment(fname_exp_yaml: str):
-    # separate_metrics(fname_exp_yaml, 0)
+    separate_metrics(fname_exp_yaml, 0)
     aggregate_metrics(fname_exp_yaml, "train_ticket.yaml", 0)
 
 
@@ -118,11 +125,11 @@ def main():
         level=logging.INFO,
         format="%(asctime)s %(levelname)s:%(message)s",
     )
-    process_single_experiment("normal-2weeks.yaml")
+    # process_single_experiment("cpu-stress-ts-auth-service-111415.yaml")
 
     # separate_metrics_with_multiprocess()
     # aggregate_metrics_with_multiprocess()
-    # merge_normal_experiments("normal-fix-4days.yaml", False, True)
+    merge_normal_experiments("normal-2weeks.yaml", False, True)
 
 
 if __name__ == "__main__":

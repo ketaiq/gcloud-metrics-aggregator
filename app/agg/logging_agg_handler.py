@@ -39,8 +39,8 @@ class LoggingAggHandler(AggregateHandler):
 
         if self.enforce_existing_aggregations:
             msg = f"Missing aggregation record for metric {self.metric_index} {self.metric_name}!"
-            logging.error(msg)
-            raise ValueError(msg)
+            logging.warning(msg)
+            return None
 
         if len(self.df_kpi_map.columns) == 1:
             # aggregate KPIs without grouping any fields in KPI map

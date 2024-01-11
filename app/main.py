@@ -86,6 +86,24 @@ def merge_normal_experiments(
     df_normal_exps.to_csv(output_path, index=False)
 
 
+def merge_experiment_with_locust_stats(fname_exp_yaml: str):
+    exp_yaml = GCloudMetrics.parse_experiment_yaml(fname_exp_yaml)
+    experiment = exp_yaml["experiments"][0]
+    exp_name = experiment["name"]
+    print(f"Merging {exp_name}")
+    # read gcloud KPIs into a DataFrame
+    path_experiment_csv = os.path.join(exp_yaml["path_experiments"], exp_name + ".csv")
+    df_exp = pd.read_csv(path_experiment_csv)
+    df_exp["timestamp"] = pd.to_datetime(df_exp["timestamp"])
+    df_locust = LocustAggregator.read_locust_kpi(exp_yaml["path_experiments"], None)
+    df_locust = LocustAggregator.aggregate_all_metrics(df_locust)
+    # merge locust KPIs with gcloud KPIs
+    df_normal_exps = (
+        df_exp.set_index("timestamp").join(df_locust, how="inner").reset_index()
+    )
+    df_normal_exps.to_csv(path_experiment_csv, index=False)
+
+
 def separate_metrics_with_multiprocess():
     inputs = [
         ("memory-stress-ts-auth-service-111717.yaml", 0),
@@ -129,7 +147,8 @@ def main():
 
     # separate_metrics_with_multiprocess()
     # aggregate_metrics_with_multiprocess()
-    merge_normal_experiments("normal-2weeks.yaml", False, True)
+    # merge_normal_experiments("normal-2weeks.yaml", False, True)
+    merge_experiment_with_locust_stats("cpu-stress-ts-auth-service-111415.yaml")
 
 
 if __name__ == "__main__":

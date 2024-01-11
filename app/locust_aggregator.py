@@ -32,7 +32,7 @@ class LocustAggregator:
         )
         df_locust["Timestamp"] = pd.to_datetime(
             df_locust["Timestamp"], unit="s"
-        ).dt.round("min")
+        ).dt.floor("T")
         df_locust = df_locust.groupby("Timestamp").agg(
             {
                 "User Count": "max",

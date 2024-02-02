@@ -1,0 +1,6 @@
+path_experiments: "/Users/ketaiqiu/Projects/train-ticket/dataset/failure-experiments/linear-memory-stress-ts-station-service-020211"
+experiments:
+  - name: linear-memory-stress-ts-station-service-020211
+    start: "2024-02-02T11:16:31+01:00"
+    end: "2024-02-02T14:16:31+01:00"
+    cluster_suffix: memory-station-020109

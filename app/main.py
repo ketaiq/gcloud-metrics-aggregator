@@ -135,6 +135,7 @@ def aggregate_metrics_with_multiprocess():
 def process_single_experiment(fname_exp_yaml: str):
     separate_metrics(fname_exp_yaml, 0)
     aggregate_metrics(fname_exp_yaml, "train_ticket.yaml", 0)
+    merge_experiment_with_locust_stats(fname_exp_yaml)
 
 
 def main():
@@ -143,12 +144,11 @@ def main():
         level=logging.INFO,
         format="%(asctime)s %(levelname)s:%(message)s",
     )
-    # process_single_experiment("cpu-stress-ts-auth-service-111415.yaml")
+    process_single_experiment("memory-stress-station-020211.yaml")
 
     # separate_metrics_with_multiprocess()
     # aggregate_metrics_with_multiprocess()
     # merge_normal_experiments("normal-2weeks.yaml", False, True)
-    merge_experiment_with_locust_stats("cpu-stress-ts-auth-service-111415.yaml")
 
 
 if __name__ == "__main__":

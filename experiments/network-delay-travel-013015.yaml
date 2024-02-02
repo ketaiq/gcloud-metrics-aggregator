@@ -1,0 +1,6 @@
+path_experiments: "/Users/ketaiqiu/Projects/train-ticket/dataset/failure-experiments/linear-network-delay-ts-travel-service-013015"
+experiments:
+  - name: linear-network-delay-ts-travel-service-013015
+    start: "2024-01-30T15:29:16+01:00"
+    end: "2024-01-30T18:29:16+01:00"
+    cluster_suffix: failure-013014

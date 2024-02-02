@@ -1,0 +1,6 @@
+path_experiments: "/Users/ketaiqiu/Projects/train-ticket/dataset/failure-experiments/linear-memory-stress-ts-auth-service-2h-013114"
+experiments:
+  - name: linear-memory-stress-ts-auth-service-2h-013114
+    start: "2024-01-31T14:44:31+01:00"
+    end: "2024-01-31T18:44:31+01:00"
+    cluster_suffix: failure-2h-013111

@@ -6,6 +6,7 @@ import yaml
 from datetime import datetime
 import logging
 import sys
+from json.decoder import JSONDecodeError
 
 
 class GCloudMetrics:
@@ -100,7 +101,11 @@ class GCloudMetrics:
             if info_dt < start_dt or info_dt > end_dt:
                 continue
             with open(os.path.join(path_nodes_info, filename)) as file_nodes_info:
-                nodes_info = json.load(file_nodes_info)
+                try:
+                    nodes_info = json.load(file_nodes_info)
+                except JSONDecodeError:
+                    print(filename)
+                    exit(0)
             for node in nodes_info["items"]:
                 if (
                     "container.googleapis.com/instance_id"

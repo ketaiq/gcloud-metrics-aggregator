@@ -35,7 +35,6 @@ class KubernetesAggHandler(AggregateHandler):
             (self.aggregations["name"] == self.metric_name)
             & (self.aggregations["index"] == self.metric_index)
         ]
-
         if not aggregation.empty:
             # use an existing aggregation record
             return self.apply_existing_aggregation(aggregation)
@@ -98,6 +97,8 @@ class KubernetesAggHandler(AggregateHandler):
         )
         if self.metric_name.startswith("kubernetes.io/container"):
             cols_to_drop.add("pod_name")
+        elif self.metric_name == "kubernetes.io/node/logs/input_bytes":
+            cols_to_drop.discard("type")
         cols_to_drop = cols_to_drop.intersection(set(self.df_kpi_map.columns))
         # keep pod_phase if exists
         cols_to_drop.discard("pod_phase")

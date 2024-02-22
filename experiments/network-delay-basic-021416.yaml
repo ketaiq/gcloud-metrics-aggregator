@@ -1,0 +1,6 @@
+path_experiments: "/Users/ketaiqiu/Projects/train-ticket/dataset/failure-experiments/linear-network-delay-ts-basic-service-021416"
+experiments:
+  - name: linear-network-delay-ts-basic-service-021416
+    start: "2024-02-14T16:54:17+01:00"
+    end: "2024-02-14T20:54:17+01:00"
+    cluster_suffix: delay-021415

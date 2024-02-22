@@ -1,0 +1,6 @@
+path_experiments: "/Users/ketaiqiu/Projects/train-ticket/dataset/failure-experiments/linear-cpu-station-memory-train-020810"
+experiments:
+  - name: linear-cpu-station-memory-train-020810
+    start: "2024-02-08T10:39:31+01:00"
+    end: "2024-02-08T13:39:31+01:00"
+    cluster_suffix: composite-failure-020809

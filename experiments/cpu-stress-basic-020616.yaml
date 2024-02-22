@@ -1,0 +1,6 @@
+path_experiments: "/Users/ketaiqiu/Projects/train-ticket/dataset/failure-experiments/linear-cpu-stress-ts-basic-service-020616"
+experiments:
+  - name: linear-cpu-stress-ts-basic-service-020616
+    start: "2024-02-06T16:03:22+01:00"
+    end: "2024-02-06T19:03:22+01:00"
+    cluster_suffix: cpu-basic-020615

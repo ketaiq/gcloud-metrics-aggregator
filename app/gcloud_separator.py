@@ -100,7 +100,13 @@ class GCloudSeparator(GCloudMetrics):
                 kpi_list.append(
                     df_kpi.add_prefix(f'kpi-{new_kpi_map_item["kpi_index"]}-')
                 )
-        df_kpis = pd.concat(kpi_list, axis=1).sort_index()
+
+        try:
+            df_kpis = pd.concat(kpi_list, axis=1).sort_index()
+        except:
+            print(kpi_list)
+            print(df_pods_metadata.shape)
+            return
 
         # aggregate duplicated minutes
         if len(df_kpis.index) != len(df_kpis.index.drop_duplicates()):

@@ -1,0 +1,6 @@
+path_experiments: "/Users/ketaiqiu/Projects/train-ticket/dataset/failure-experiments/linear-memory-station-delay-train-022622"
+experiments:
+  - name: linear-memory-station-delay-train-022622
+    start: "2024-02-26T22:03:21+01:00"
+    end: "2024-02-27T02:03:21+01:00"
+    cluster_suffix: composite-failure-022615

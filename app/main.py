@@ -144,7 +144,7 @@ def main():
         level=logging.INFO,
         format="%(asctime)s %(levelname)s:%(message)s",
     )
-    process_single_experiment("cpu-stress-station-022114.yaml")
+    process_single_experiment("memory-station-delay-train-022622.yaml")
 
     # separate_metrics_with_multiprocess()
     # aggregate_metrics_with_multiprocess()
